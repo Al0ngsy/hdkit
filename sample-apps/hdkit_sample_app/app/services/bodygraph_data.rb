@@ -55,53 +55,32 @@ class BodygraphData
     channels.each do |channel|
       centers = centers_by_channel[channel]
 
-      # If no definition yet, or channel defines center already in 1st area of definition
-      if areas_of_definition[1].empty? || centers.any? { |center| areas_of_definition[1].include?(center) }
-        areas_of_definition[1] |= centers
-        if centers.any? { |center| areas_of_definition[1].include?(center) } && centers.any? { |center| areas_of_definition[2].include?(center) }
-          areas_of_definition[1] |= areas_of_definition[2]
-          areas_of_definition[2] = []
-          areas_of_definition[1] |= centers
+      # Check if either of the centers already belongs to an area
+      found_area_key = nil
+      areas_of_definition.each do |key, centers_in_area|
+        if (centers_in_area & centers).any?
+          found_area_key = key
+          break
         end
-      # If channel defines centers in both 1st and 2nd area of definition, combine them
-      elsif centers.any? { |center| areas_of_definition[1].include?(center) } && centers.any? { |center| areas_of_definition[2].include?(center) }
-        areas_of_definition[1] |= areas_of_definition[2]
-        areas_of_definition[2] = []
-        areas_of_definition[1] |= centers
-      # If no 2nd area of definition yet, or channel defines center already in 2nd area
-      elsif areas_of_definition[2].empty? || centers.any? { |center| areas_of_definition[2].include?(center) }
-        areas_of_definition[2] |= centers
-      # If channel defines centers in both 1st and 3rd area of definition, combine them
-      elsif centers.any? { |center| areas_of_definition[1].include?(center) } && centers.any? { |center| areas_of_definition[3].include?(center) }
-        areas_of_definition[1] |= areas_of_definition[3]
-        areas_of_definition[3] = []
-        areas_of_definition[1] |= centers
-      # If channel defines centers in both 2nd and 3rd area of definition, combine them
-      elsif centers.any? { |center| areas_of_definition[2].include?(center) } && centers.any? { |center| areas_of_definition[3].include?(center) }
-        areas_of_definition[2] |= areas_of_definition[3]
-        areas_of_definition[3] = []
-        areas_of_definition[2] |= centers
-      # If no 3rd area of definition yet, or channel defines center already in 3rd area
-      elsif areas_of_definition[3].empty? || centers.any? { |center| areas_of_definition[3].include?(center) }
-        areas_of_definition[3] |= centers
-      # If channel defines centers in both 1st and 4th area of definition, combine them
-      elsif centers.any? { |center| areas_of_definition[1].include?(center) } && centers.any? { |center| areas_of_definition[4].include?(center) }
-        areas_of_definition[1] |= areas_of_definition[4]
-        areas_of_definition[4] = []
-        areas_of_definition[1] |= centers
-      # If channel defines centers in both 2nd and 4th area of definition, combine them
-      elsif centers.any? { |center| areas_of_definition[2].include?(center) } && centers.any? { |center| areas_of_definition[4].include?(center) }
-        areas_of_definition[2] |= areas_of_definition[4]
-        areas_of_definition[4] = []
-        areas_of_definition[2] |= centers
-      # If channel defines centers in both 3rd and 4th area of definition, combine them
-      elsif centers.any? { |center| areas_of_definition[3].include?(center) } && centers.any? { |center| areas_of_definition[4].include?(center) }
-        areas_of_definition[3] |= areas_of_definition[4]
-        areas_of_definition[4] = []
-        areas_of_definition[3] |= centers
-      # If no 4th area of definition yet, or channel defines center already in 4th area
-      elsif areas_of_definition[4].empty? || centers.any? { |center| areas_of_definition[4].include?(center) }
-        areas_of_definition[4] |= centers
+      end
+
+      if found_area_key
+        # Merge new centers into the found area
+        areas_of_definition[found_area_key] |= centers
+
+        # Now check if these new centers also overlap with another area → merge them
+        areas_of_definition.each do |key, centers_in_area|
+          next if key == found_area_key
+
+          if (centers_in_area & areas_of_definition[found_area_key]).any?
+            areas_of_definition[found_area_key] |= centers_in_area
+            areas_of_definition[key] = [] # clear merged area
+          end
+        end
+      else
+        # Put the new channel into the first empty area
+        empty_key = areas_of_definition.keys.find { |k| areas_of_definition[k].empty? }
+        areas_of_definition[empty_key] = centers
       end
     end
 
